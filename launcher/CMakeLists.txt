@@ -124,6 +124,8 @@ set(NET_SOURCES
     net/HttpMetaCache.h
     net/MetaCacheSink.cpp
     net/MetaCacheSink.h
+    net/Logging.h
+    net/Logging.cpp
     net/NetAction.h
     net/NetJob.cpp
     net/NetJob.h
@@ -134,6 +136,15 @@ set(NET_SOURCES
     net/Validator.h
     net/Upload.cpp
     net/Upload.h
+    net/HeaderProxy.h
+    net/RawHeaderProxy.h
+    net/ApiHeaderProxy.h
+    net/ApiDownload.h
+    net/ApiDownload.cpp
+    net/ApiUpload.cpp
+    net/ApiUpload.h
+    net/NetRequest.cpp
+    net/NetRequest.h
 )
 
 # Game launch logic
@@ -260,8 +271,6 @@ set(MINECRAFT_SOURCES
     minecraft/launch/CreateGameFolders.h
     minecraft/launch/ModMinecraftJar.cpp
     minecraft/launch/ModMinecraftJar.h
-    minecraft/launch/DirectJavaLaunch.cpp
-    minecraft/launch/DirectJavaLaunch.h
     minecraft/launch/ExtractNatives.cpp
     minecraft/launch/ExtractNatives.h
     minecraft/launch/LauncherPartLaunch.cpp
@@ -360,6 +369,8 @@ set(MINECRAFT_SOURCES
     minecraft/mod/tasks/LocalWorldSaveParseTask.cpp
     minecraft/mod/tasks/LocalResourceParse.h
     minecraft/mod/tasks/LocalResourceParse.cpp
+    minecraft/mod/tasks/GetModDependenciesTask.h
+    minecraft/mod/tasks/GetModDependenciesTask.cpp
 
     # Assets
     minecraft/AssetsUtils.h
@@ -373,8 +384,6 @@ set(MINECRAFT_SOURCES
     minecraft/services/SkinDelete.cpp
     minecraft/services/SkinDelete.h
 
-    mojang/PackageManifest.h
-    mojang/PackageManifest.cpp
     minecraft/Agent.h)
 
 # the screenshots feature
@@ -485,6 +494,9 @@ set(API_SOURCES
     modplatform/helpers/HashUtils.cpp
     modplatform/helpers/OverrideUtils.h
     modplatform/helpers/OverrideUtils.cpp
+
+    modplatform/helpers/ExportToModList.h
+    modplatform/helpers/ExportToModList.cpp
 )
 
 set(FTB_SOURCES
@@ -496,6 +508,11 @@ set(FTB_SOURCES
     modplatform/legacy_ftb/PrivatePackManager.cpp
 
     modplatform/legacy_ftb/PackHelpers.h
+
+    modplatform/import_ftb/PackInstallTask.h
+    modplatform/import_ftb/PackInstallTask.cpp
+    modplatform/import_ftb/PackHelpers.h
+    modplatform/import_ftb/PackHelpers.cpp
 )
 
 set(FLAME_SOURCES
@@ -512,6 +529,8 @@ set(FLAME_SOURCES
     modplatform/flame/FlameCheckUpdate.h
     modplatform/flame/FlameInstanceCreationTask.h
     modplatform/flame/FlameInstanceCreationTask.cpp
+    modplatform/flame/FlamePackExportTask.h
+    modplatform/flame/FlamePackExportTask.cpp
 )
 
 set(MODRINTH_SOURCES
@@ -523,6 +542,8 @@ set(MODRINTH_SOURCES
     modplatform/modrinth/ModrinthCheckUpdate.h
     modplatform/modrinth/ModrinthInstanceCreationTask.cpp
     modplatform/modrinth/ModrinthInstanceCreationTask.h
+    modplatform/modrinth/ModrinthPackExportTask.cpp
+    modplatform/modrinth/ModrinthPackExportTask.h
 )
 
 set(MODPACKSCH_SOURCES
@@ -561,6 +582,9 @@ set(ATLAUNCHER_SOURCES
 )
 
 set(LINKEXE_SOURCES
+    WindowsConsole.cpp
+    WindowsConsole.h
+
     filelink/FileLink.h
     filelink/FileLink.cpp
     FileSystem.h
@@ -582,6 +606,55 @@ ecm_qt_declare_logging_category(CORE_SOURCES
     DESCRIPTION "Secrets and credentials for debugging purposes"
     EXPORT "${Launcher_Name}"
 )
+
+ecm_qt_export_logging_category(
+    IDENTIFIER taskLogC
+    CATEGORY_NAME "launcher.task"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "Task actions"
+    EXPORT "${Launcher_Name}"
+)
+
+ecm_qt_export_logging_category(
+    IDENTIFIER taskNetLogC
+    CATEGORY_NAME "launcher.task.net"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "task network action"
+    EXPORT "${Launcher_Name}"
+)
+
+ecm_qt_export_logging_category(
+    IDENTIFIER taskDownloadLogC
+    CATEGORY_NAME "launcher.task.net.download"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "task network download actions"
+    EXPORT "${Launcher_Name}"
+)
+ecm_qt_export_logging_category(
+    IDENTIFIER taskUploadLogC
+    CATEGORY_NAME "launcher.task.net.upload"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "task network upload actions"
+    EXPORT "${Launcher_Name}"
+)
+
+ecm_qt_export_logging_category(
+    IDENTIFIER taskMetaCacheLogC
+    CATEGORY_NAME "launcher.task.net.metacache"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "task network meta-cache actions"
+    EXPORT "${Launcher_Name}"
+)
+
+ecm_qt_export_logging_category(
+    IDENTIFIER taskHttpMetaCacheLogC
+    CATEGORY_NAME "launcher.task.net.metacache.http"
+    DEFAULT_SEVERITY Debug
+    DESCRIPTION "task network http meta-cache actions"
+    EXPORT "${Launcher_Name}"
+)
+
+
 
 if(KDE_INSTALL_LOGGINGCATEGORIESDIR)  # only install if there is a standard path for this
     ecm_qt_install_logging_categories(
@@ -618,7 +691,7 @@ set(LOGIC_SOURCES
     ${ATLAUNCHER_SOURCES}
 )
 
-if(APPLE)
+if(APPLE AND Launcher_ENABLE_UPDATER)
     set (LOGIC_SOURCES ${LOGIC_SOURCES} ${MAC_UPDATE_SOURCES})
 endif()
 
@@ -637,6 +710,7 @@ SET(LAUNCHER_SOURCES
     VersionProxyModel.h
     VersionProxyModel.cpp
     Markdown.h
+    Markdown.cpp
 
     # Super secret!
     KonamiCode.h
@@ -677,6 +751,10 @@ SET(LAUNCHER_SOURCES
     # FIXME: maybe find a better home for this.
     SkinUtils.cpp
     SkinUtils.h
+    FileIgnoreProxy.cpp
+    FileIgnoreProxy.h
+    FastFileIconProvider.cpp
+    FastFileIconProvider.h
 
     # GUI - setup wizard
     ui/setupwizard/SetupWizard.h
@@ -704,8 +782,12 @@ SET(LAUNCHER_SOURCES
     ui/themes/ITheme.h
     ui/themes/SystemTheme.cpp
     ui/themes/SystemTheme.h
+    ui/themes/IconTheme.cpp
+    ui/themes/IconTheme.h
     ui/themes/ThemeManager.cpp
     ui/themes/ThemeManager.h
+    ui/themes/CatPack.cpp
+    ui/themes/CatPack.h
 
     # Processes
     LaunchController.h
@@ -776,8 +858,8 @@ SET(LAUNCHER_SOURCES
     ui/pages/global/APIPage.h
 
     # GUI - platform pages
-    ui/pages/modplatform/VanillaPage.cpp
-    ui/pages/modplatform/VanillaPage.h
+    ui/pages/modplatform/CustomPage.cpp
+    ui/pages/modplatform/CustomPage.h
 
     ui/pages/modplatform/ResourcePage.cpp
     ui/pages/modplatform/ResourcePage.h
@@ -822,6 +904,11 @@ SET(LAUNCHER_SOURCES
     ui/pages/modplatform/legacy_ftb/ListModel.h
     ui/pages/modplatform/legacy_ftb/ListModel.cpp
 
+    ui/pages/modplatform/import_ftb/ImportFTBPage.cpp
+    ui/pages/modplatform/import_ftb/ImportFTBPage.h
+    ui/pages/modplatform/import_ftb/ListModel.h
+    ui/pages/modplatform/import_ftb/ListModel.cpp
+
     ui/pages/modplatform/flame/FlameModel.cpp
     ui/pages/modplatform/flame/FlameModel.h
     ui/pages/modplatform/flame/FlamePage.cpp
@@ -864,6 +951,10 @@ SET(LAUNCHER_SOURCES
     ui/dialogs/EditAccountDialog.h
     ui/dialogs/ExportInstanceDialog.cpp
     ui/dialogs/ExportInstanceDialog.h
+    ui/dialogs/ExportPackDialog.cpp
+    ui/dialogs/ExportPackDialog.h
+    ui/dialogs/ExportToModListDialog.cpp
+    ui/dialogs/ExportToModListDialog.h
     ui/dialogs/IconPickerDialog.cpp
     ui/dialogs/IconPickerDialog.h
     ui/dialogs/ImportResourceDialog.cpp
@@ -900,6 +991,8 @@ SET(LAUNCHER_SOURCES
     ui/dialogs/ChooseProviderDialog.cpp
     ui/dialogs/ModUpdateDialog.cpp
     ui/dialogs/ModUpdateDialog.h
+    ui/dialogs/InstallLoaderDialog.cpp
+    ui/dialogs/InstallLoaderDialog.h
 
     # GUI - widgets
     ui/widgets/Common.cpp
@@ -937,6 +1030,8 @@ SET(LAUNCHER_SOURCES
     ui/widgets/VariableSizedImageObject.cpp
     ui/widgets/ProjectItem.h
     ui/widgets/ProjectItem.cpp
+    ui/widgets/SubTaskProgressBar.h
+    ui/widgets/SubTaskProgressBar.cpp
     ui/widgets/VersionListView.cpp
     ui/widgets/VersionListView.h
     ui/widgets/VersionSelectWidget.cpp
@@ -962,6 +1057,14 @@ SET(LAUNCHER_SOURCES
     ui/instanceview/VisualGroup.h
 )
 
+if(WIN32)
+    set(LAUNCHER_SOURCES
+        WindowsConsole.cpp
+        WindowsConsole.h
+        ${LAUNCHER_SOURCES}
+    )
+endif()
+
 qt_wrap_ui(LAUNCHER_UI
     ui/MainWindow.ui
     ui/setupwizard/PasteWizardPage.ui
@@ -986,10 +1089,11 @@ qt_wrap_ui(LAUNCHER_UI
     ui/pages/instance/ScreenshotsPage.ui
     ui/pages/modplatform/atlauncher/AtlOptionalModDialog.ui
     ui/pages/modplatform/atlauncher/AtlPage.ui
-    ui/pages/modplatform/VanillaPage.ui
+    ui/pages/modplatform/CustomPage.ui
     ui/pages/modplatform/ResourcePage.ui
     ui/pages/modplatform/flame/FlamePage.ui
     ui/pages/modplatform/legacy_ftb/Page.ui
+    ui/pages/modplatform/import_ftb/ImportFTBPage.ui
     ui/pages/modplatform/ImportPage.ui
     ui/pages/modplatform/ftb/FtbPage.ui
     ui/pages/modplatform/modrinth/ModrinthPage.ui
@@ -998,6 +1102,7 @@ qt_wrap_ui(LAUNCHER_UI
     ui/widgets/CustomCommands.ui
     ui/widgets/InfoFrame.ui
     ui/widgets/ModFilterWidget.ui
+    ui/widgets/SubTaskProgressBar.ui
     ui/widgets/ThemeCustomizationWidget.ui
     ui/dialogs/CopyInstanceDialog.ui
     ui/dialogs/ProfileSetupDialog.ui
@@ -1008,6 +1113,8 @@ qt_wrap_ui(LAUNCHER_UI
     ui/dialogs/ProfileSelectDialog.ui
     ui/dialogs/SkinUploadDialog.ui
     ui/dialogs/ExportInstanceDialog.ui
+    ui/dialogs/ExportPackDialog.ui
+    ui/dialogs/ExportToModListDialog.ui
     ui/dialogs/IconPickerDialog.ui
     ui/dialogs/ImportResourceDialog.ui
     ui/dialogs/MSALoginDialog.ui
@@ -1042,8 +1149,15 @@ if(WIN32)
     set(LAUNCHER_RCS ${CMAKE_CURRENT_BINARY_DIR}/../${Launcher_Branding_WindowsRC})
 endif()
 
+include(CompilerWarnings)
+
 # Add executable
 add_library(Launcher_logic STATIC ${LOGIC_SOURCES} ${LAUNCHER_SOURCES} ${LAUNCHER_UI} ${LAUNCHER_RESOURCES})
+set_project_warnings(Launcher_logic
+    "${Launcher_MSVC_WARNINGS}"
+    "${Launcher_CLANG_WARNINGS}"
+    "${Launcher_GCC_WARNINGS}")
+target_compile_definitions(Launcher_logic PUBLIC LAUNCHER_APPLICATION)
 target_include_directories(Launcher_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(Launcher_logic
     systeminfo
@@ -1083,17 +1197,23 @@ if(APPLE)
     set(CMAKE_MACOSX_RPATH 1)
     set(CMAKE_INSTALL_RPATH "@loader_path/../Frameworks/")
 
-    file(DOWNLOAD ${MACOSX_SPARKLE_DOWNLOAD_URL} ${CMAKE_BINARY_DIR}/Sparkle.tar.xz EXPECTED_HASH SHA256=${MACOSX_SPARKLE_SHA256})
-    file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/Sparkle.tar.xz DESTINATION ${CMAKE_BINARY_DIR}/frameworks/Sparkle)
+    if(Launcher_ENABLE_UPDATER)
+      file(DOWNLOAD ${MACOSX_SPARKLE_DOWNLOAD_URL} ${CMAKE_BINARY_DIR}/Sparkle.tar.xz EXPECTED_HASH SHA256=${MACOSX_SPARKLE_SHA256})
+      file(ARCHIVE_EXTRACT INPUT ${CMAKE_BINARY_DIR}/Sparkle.tar.xz DESTINATION ${CMAKE_BINARY_DIR}/frameworks/Sparkle)
 
-    find_library(SPARKLE_FRAMEWORK Sparkle "${CMAKE_BINARY_DIR}/frameworks/Sparkle")
+      find_library(SPARKLE_FRAMEWORK Sparkle "${CMAKE_BINARY_DIR}/frameworks/Sparkle")
+      add_compile_definitions(SPARKLE_ENABLED)
+    endif()
+
     target_link_libraries(Launcher_logic
         "-framework AppKit"
         "-framework Carbon"
         "-framework Foundation"
         "-framework ApplicationServices"
     )
-    target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
+    if(Launcher_ENABLE_UPDATER)
+      target_link_libraries(Launcher_logic ${SPARKLE_FRAMEWORK})
+    endif()
 endif()
 
 target_link_libraries(Launcher_logic)
@@ -1122,6 +1242,11 @@ install(TARGETS ${Launcher_Name}
 
 if(WIN32)
     add_library(filelink_logic STATIC ${LINKEXE_SOURCES})
+    set_project_warnings(filelink_logic
+    "${Launcher_MSVC_WARNINGS}"
+    "${Launcher_CLANG_WARNINGS}"
+    "${Launcher_GCC_WARNINGS}")
+
     target_include_directories(filelink_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(filelink_logic
         systeminfo
@@ -1155,7 +1280,7 @@ if(WIN32)
     )
 endif()
 
-if (UNIX AND APPLE)
+if (UNIX AND APPLE AND Launcher_ENABLE_UPDATER)
     # Add Sparkle updater
     # It has to be copied here instead of just allowing fixup_bundle to install it, otherwise essential parts of
     # the framework aren't installed
@@ -1169,6 +1294,12 @@ if(INSTALL_BUNDLE STREQUAL "full")
     # Add qt.conf - this makes Qt stop looking for things outside the bundle
     install(
         CODE "file(WRITE \"\${CMAKE_INSTALL_PREFIX}/${RESOURCES_DEST_DIR}/qt.conf\" \" \")"
+        COMPONENT Runtime
+    )
+    # add qtlogging.ini as a config file
+    install(
+        FILES "qtlogging.ini"
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/${RESOURCES_DEST_DIR}
         COMPONENT Runtime
     )
     # Bundle plugins
